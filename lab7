@@ -1,0 +1,41 @@
+--- ==========================================
+--- 0. KHỞI TẠO BẢNG (Chỉ chạy 1 lần nếu chưa có bảng)
+--- ==========================================
+CREATE TABLE IF NOT EXISTS customers (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100),
+    phone_number VARCHAR(20),
+    address TEXT
+);
+
+-- Nếu bảng trống thì mới chèn dữ liệu (để tránh chèn trùng)
+INSERT INTO customers (full_name, phone_number, address)
+SELECT 
+    'Customer ' || i,
+    '0910' || LPAD(i::text, 6, '0'),
+    'Address ' || i
+FROM generate_series(1, 100000) AS i
+WHERE NOT EXISTS (SELECT 1 FROM customers LIMIT 1);
+
+--- ==========================================
+--- BÀI 1 & 2: PHÂN TÍCH INDEX
+--- ==========================================
+
+-- Thêm IF NOT EXISTS để không bị lỗi "already exists"
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone_number);
+
+-- Chạy phân tích (Bạn bôi đen dòng này để chạy riêng)
+EXPLAIN ANALYZE 
+SELECT * FROM customers WHERE phone_number = '0910099999';
+
+--- ==========================================
+--- BÀI 4: BITMAP SCAN
+--- ==========================================
+
+-- Thêm IF NOT EXISTS ở đây luôn
+CREATE INDEX IF NOT EXISTS idx_customers_address ON customers(address);
+
+-- Chạy truy vấn phức tạp
+EXPLAIN ANALYZE
+SELECT * FROM customers 
+WHERE address = 'Address 500' OR phone_number LIKE '091001%';
